@@ -107,6 +107,17 @@ allocpid()
 // and return with p->lock held.
 // If there are no free procs, or a memory allocation fails, return 0.
 static struct proc*
+//Step 2: Implement find_proc_by_pid()
+struct proc* find_proc_by_pid(int pid){
+  struct proc *p;
+  for(p = proc; p < &proc[NPROC]; p++){
+    if(p->pid == pid){
+       return p; 
+    }
+  }
+  return 0;
+}
+
 allocproc(void)
 {
   struct proc *p;
