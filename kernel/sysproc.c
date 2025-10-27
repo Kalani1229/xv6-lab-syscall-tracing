@@ -92,6 +92,22 @@ sys_uptime(void)
   return xticks;
 }
 
+uint64
+sys_trace(void)
+{
+  int pid;
+  // Accept argument (PID)
 
+  struct proc *p = find_proc_by_pid(pid); // implement this function
+  if (p != NULL){
+    // The process with the specified PID exists
+    p->traced = 1;
+    return 0;
+  }
+  else{
+    // No such process
+    return -1;
+  }
+}
 
 
