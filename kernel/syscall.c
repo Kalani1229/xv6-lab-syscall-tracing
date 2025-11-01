@@ -7,7 +7,30 @@
 #include "syscall.h"
 #include "defs.h"
 
-
+static char *syscall_names[] = {
+  [SYS_fork]    "fork",
+  [SYS_exit]    "exit",
+  [SYS_wait]    "wait",
+  [SYS_pipe]    "pipe",
+  [SYS_read]    "read",
+  [SYS_kill]    "kill",
+  [SYS_exec]    "exec",
+  [SYS_fstat]   "fstat",
+  [SYS_chdir]   "chdir",
+  [SYS_dup]     "dup",
+  [SYS_getpid]  "getpid",
+  [SYS_sbrk]    "sbrk",
+  [SYS_sleep]   "sleep",
+  [SYS_uptime]  "uptime",
+  [SYS_open]    "open",
+  [SYS_write]   "write",
+  [SYS_mknod]   "mknod",
+  [SYS_unlink]  "unlink",
+  [SYS_link]    "link",
+  [SYS_mkdir]   "mkdir",
+  [SYS_close]   "close",
+  [SYS_trace]   "trace",
+};
 // Fetch the uint64 at addr from the current process.
 int
 fetchaddr(uint64 addr, uint64 *ip)
@@ -131,26 +154,61 @@ static uint64 (*syscalls[])(void) = {
 [SYS_trace]   sys_trace,
 };
 
-
-
-
-
-void
-syscall(void)
+void syscall(void)
 {
+
   int num;
   struct proc *p = myproc();
-
   num = p->trapframe->a7;
-  if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
-    // Use num to lookup the system call function for num, call it,
-    // and store its return value in p->trapframe->a0
-    p->trapframe->a0 = syscalls[num]();
-  } else {
+  if (num > 0 && num < NELEM(syscalls) && syscalls[num])
+  {
+
+    
+    uint64 arg0 = p->trapframe->a0; // Save first argument BEFORE syscall dispatch
+    
+    // For string-argument syscalls, fetch the string BEFORE syscall dispatch
+    // (especially important for exec, which replaces the page table on success)
+    char traced_str[MAXPATH] = {0};
+    int is_string_syscall = (num == SYS_open || num == SYS_unlink ||
+                            num == SYS_chdir || num == SYS_mkdir || num == SYS_link || num == SYS_exec);
+    if (p->traced && is_string_syscall) {
+      if (fetchstr(arg0, traced_str, MAXPATH) < 0) {
+        traced_str[0] = '\0'; // Mark as invalid
+      }
+    }
+
+    p->trapframe->a0 = syscalls[num](); // Use num to lookup the system call function for num, call it, and store its return value in p->trapframe->a0
+
+    if (p->traced)
+    {
+      // Print syscall name
+      printf("[pid %d] %s(", p->pid, syscall_names[num]);
+      
+      // Print first argument based on syscall type
+      if (is_string_syscall)
+      {
+         // For string-argument syscalls, use the string we fetched earlier
+         if (traced_str[0] != '\0') {
+           printf("\"%s\"", traced_str);
+         } else {
+           printf("<bad ptr>");
+         }
+      }
+      else
+      {
+         // For all other syscalls, print the argument as integer
+         printf("%ld", arg0);
+      }
+
+      // Print return value
+      printf(") = %ld\n", p->trapframe->a0);
+    }
+  }
+  else
+  {
     printf("%d %s: unknown sys call %d\n",
-            p->pid, p->name, num);
+           p->pid, p->name, num);
     p->trapframe->a0 = -1;
   }
 }
-
 
